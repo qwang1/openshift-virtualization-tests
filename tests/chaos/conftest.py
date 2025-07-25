@@ -380,10 +380,6 @@ def chaos_vms_instancetype_list(request, admin_client, chaos_namespace):
         vm.deploy(wait=True)
         vms_list.append(vm)
 
-    # for vm in vms_list:
-    #     vm.start(wait=True, timeout=TIMEOUT_5MIN)
-    #     vm.wait_for_ready_status(status=True, timeout=TIMEOUT_5MIN)
-
     yield vms_list
 
     for vm in vms_list:

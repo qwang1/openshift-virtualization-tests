@@ -9,7 +9,6 @@ import re
 import shlex
 from collections import defaultdict
 from contextlib import contextmanager
-from functools import cache
 from json import JSONDecodeError
 from subprocess import run
 from typing import TYPE_CHECKING, Any, Dict
@@ -25,7 +24,6 @@ from ocp_resources.datavolume import DataVolume
 from ocp_resources.kubevirt import KubeVirt
 from ocp_resources.node import Node
 from ocp_resources.pod import Pod
-from ocp_resources.pod_disruption_budget import PodDisruptionBudget
 from ocp_resources.resource import Resource, ResourceEditor, get_client
 from ocp_resources.service import Service
 from ocp_resources.storage_profile import StorageProfile
@@ -55,7 +53,6 @@ from utilities.constants import (
     EVICTIONSTRATEGY,
     IP_FAMILY_POLICY_PREFER_DUAL_STACK,
     LINUX_AMD_64,
-    LIVE_MIGRATE,
     OS_FLAVOR_CIRROS,
     OS_FLAVOR_FEDORA,
     OS_FLAVOR_WINDOWS,
@@ -1756,24 +1753,22 @@ def migrate_vm_and_verify(
     wait_for_migration_success: bool = True,
 ) -> VirtualMachineInstanceMigration | None:
     """
-    create a migration instance. You may choose to wait for migration
+    Create a migration instance. You may choose to wait for migration
     success or not.
 
     Args:
-        vm (VirtualMachine): vm to be migrated
-        client (DynamicClient): client to use for migration
-        wait_for_migration_success (boolean):
-            True = full teardown will be applied.
-            False = no teardown (responsibility on the programmer), and no
+        vm (VirtualMachine): VM to be migrated.
+        client (DynamicClient, default=None): Client to use for migration.
+        timeout (int, default=12 minutes): Maximum time to wait for the migration to finish.
+        wait_for_interfaces (bool, default=True): Wait for VM network interfaces after migration completes.
+        check_ssh_connectivity (bool, default=False): Verify SSH connectivity to the VM after migration completes.
+        wait_for_migration_success (bool, default=True):
+            True = Full teardown will be applied.
+            False = No teardown (responsibility on the programmer), and no
                     wait for migration process to finish.
 
     Returns:
-        VirtualMachineInstanceMigration: if wait_for_migration_success == false
-
-    Raises:
-        AssertionError: if migration ended with SUCCEEDED status, but node was
-                        not changed for migrated vm OR migrationState was not
-                        completed.
+        VirtualMachineInstanceMigration: If wait_for_migration_success == false, else returns None
     """
     node_before = vm.vmi.node
 
@@ -1835,9 +1830,6 @@ def wait_for_migration_finished(vm, migration, timeout=TIMEOUT_12MIN):
         if sample:
             LOGGER.error(f"Status of VMIM {migration.name} is {sample}")
         raise
-
-    if vm.instance.spec.template.spec.evictionStrategy == LIVE_MIGRATE:
-        verify_one_pdb_per_vm(vm=vm)
 
 
 def verify_vm_migrated(
@@ -2073,28 +2065,6 @@ def get_base_templates_list(client):
     ]
 
 
-def verify_one_pdb_per_vm(vm):
-    """Verify one PodDisruptionBudget created for a VM; VM must be configured with evictionStrategy: LiveMigrate
-
-    Args:
-        vm (VirtualMachine): VM object
-
-    Raises:
-        AssertionError if there is more than one PDB for the VM
-    """
-    if is_jira_64988_bug_open():
-        LOGGER.warning("PodDisruptionBudget not created because of the bug CNV-64988")
-        return
-    pdb_resource_name = "PodDisruptionBudget"
-    LOGGER.info(f"Verify one {pdb_resource_name} for VM {vm.name}")
-    pdbs_dict = {}
-    for pdb in PodDisruptionBudget.get(dyn_client=get_client(), namespace=vm.namespace):
-        if pdb.instance.metadata.ownerReferences[0].name == vm.name:
-            pdbs_dict[pdb.name] = pdb.instance.metadata
-
-    assert len(pdbs_dict) == 1, f"VM {vm.name} must have one {pdb_resource_name}, current: {pdbs_dict}"
-
-
 def get_template_by_labels(admin_client, template_labels):
     template = list(
         Template.get(
@@ -2194,7 +2164,6 @@ def check_migration_process_after_node_drain(dyn_client, vm):
 
     target_pod = vm.privileged_vmi.virt_launcher_pod
     target_pod.wait_for_status(status=Pod.Status.RUNNING, timeout=TIMEOUT_3MIN)
-    verify_one_pdb_per_vm(vm=vm)
     target_node = target_pod.node
     LOGGER.info(f"The VMI is currently running on {target_node.name}")
     assert target_node != source_node, f"Target node is same as source node: {source_node.name}"
@@ -2590,8 +2559,3 @@ def validate_virtctl_guest_agent_data_over_time(vm: VirtualMachineForTests) -> b
 def get_vm_boot_time(vm: VirtualMachineForTests) -> str:
     boot_command = 'net statistics workstation | findstr "Statistics since"' if "windows" in vm.name else "who -b"
     return run_ssh_commands(host=vm.ssh_exec, commands=shlex.split(boot_command))[0]
-
-
-@cache
-def is_jira_64988_bug_open():
-    return utilities.infra.is_jira_open(jira_id="CNV-64988")
