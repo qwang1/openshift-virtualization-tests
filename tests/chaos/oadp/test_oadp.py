@@ -36,3 +36,31 @@ def test_reboot_vm_node_during_backup(
 
     LOGGER.info("Waiting for backup to reach 'PartiallyFailed' status after node recovery")
     oadp_backup_in_progress.wait_for_status(status="PartiallyFailed", timeout=TIMEOUT_10MIN)
+
+
+@pytest.mark.chaos
+@pytest.mark.parametrize(
+    "rhel_vm_with_dv_running",
+    [
+        pytest.param(
+            {
+                "vm_name": "vm-12016",
+                "volume_mode": DataVolume.VolumeMode.BLOCK,
+                "rhel_image": Images.Rhel.RHEL9_3_IMG,
+            },
+            marks=pytest.mark.polarion("CNV-12016"),
+        ),
+    ],
+    indirect=True,
+)
+def test_cordon_off_vm_node_during_backup(
+    chaos_namespace,
+    rhel_vm_with_dv_running,
+    oadp_backup_in_progress,
+    cordon_vm_source_node
+):
+    """
+    Cordon off the worker node where the VM is located during OADP backup using DataMover.
+    Validate that backup eventually Completed.
+    """
+    oadp_backup_in_progress.wait_for_status(status="Completed", timeout=TIMEOUT_10MIN)
