@@ -2,14 +2,10 @@ import logging
 
 import pytest
 
-
 from tests.os_params import RHEL_LATEST
-from ocp_resources.datavolume import DataVolume
-from utilities.constants import TIMEOUT_10MIN, Images
-
+from utilities.constants import TIMEOUT_10MIN
 
 LOGGER = logging.getLogger(__name__)
-
 
 
 @pytest.mark.destructive
@@ -68,4 +64,6 @@ def test_cordon_off_vm_node_during_backup(
     Cordon off the worker node where the VM is located during OADP backup using DataMover.
     Validate that backup eventually Completed.
     """
-    oadp_backup_in_progress.wait_for_status(status=oadp_backup_in_progress.Backup.Status.COMPLETED, timeout=TIMEOUT_10MIN)
+    oadp_backup_in_progress.wait_for_status(
+        status=oadp_backup_in_progress.Backup.Status.COMPLETED, timeout=TIMEOUT_10MIN
+    )
