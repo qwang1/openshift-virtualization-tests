@@ -54,10 +54,7 @@ def test_reboot_vm_node_during_backup(
     indirect=True,
 )
 def test_cordon_off_vm_node_during_backup(
-    chaos_namespace,
-    rhel_vm_with_dv_running,
-    oadp_backup_in_progress,
-    cordon_vm_source_node
+    chaos_namespace, rhel_vm_with_dv_running, oadp_backup_in_progress, cordon_vm_source_node
 ):
     """
     Cordon off the worker node where the VM is located during OADP backup using DataMover.

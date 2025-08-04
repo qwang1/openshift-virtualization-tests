@@ -1,4 +1,3 @@
-
 import datetime
 import logging
 
@@ -17,8 +16,6 @@ from utilities.storage import write_file
 from utilities.virt import node_mgmt_console, wait_for_node_schedulable_status
 
 LOGGER = logging.getLogger(__name__)
-
-
 
 
 @pytest.fixture()
@@ -42,7 +39,6 @@ def rhel_vm_with_dv_running(
         storage_class=snapshot_storage_class_name_scope_module,
         namespace=chaos_namespace.name,
         vm_name=vm_name,
-        dv_name=f"dv-{vm_name}",
         wait_running=True,
         volume_mode=volume_mode,
         rhel_image=request.param.get("rhel_image"),
@@ -91,5 +87,7 @@ def rebooted_vm_source_node(rhel_vm_with_dv_running, oadp_backup_in_progress, wo
 
 @pytest.fixture()
 def cordon_vm_source_node(rhel_vm_with_dv_running, oadp_backup_in_progress):
+    vm = rhel_vm_with_dv_running
+    vm_node = vm.vmi.node
     with node_mgmt_console(node=vm_node, node_mgmt="cordon"):
         wait_for_node_schedulable_status(node=vm_node, status=False, timeout=TIMEOUT_5MIN)
