@@ -39,6 +39,7 @@ def rhel_vm_with_dv_running(
         storage_class=snapshot_storage_class_name_scope_module,
         namespace=chaos_namespace.name,
         vm_name=vm_name,
+        dv_name=f"dv-{vm_name}",
         wait_running=True,
         volume_mode=volume_mode,
         rhel_image=request.param.get("rhel_image"),
