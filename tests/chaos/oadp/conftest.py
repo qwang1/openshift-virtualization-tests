@@ -1,12 +1,15 @@
 import datetime
 import logging
+import time
 
 import pytest
+from ocp_resources.utils.resource_constants import ResourceConstants
 
 from utilities.constants import FILE_NAME_FOR_BACKUP, TEXT_TO_TEST, TIMEOUT_3MIN, TIMEOUT_5MIN
 from utilities.infra import ExecCommandOnPod, wait_for_node_status
 from utilities.oadp import VeleroBackup, create_rhel_vm, is_storage_class_support_volume_mode
 from utilities.storage import write_file
+from utilities.virt import node_mgmt_console, wait_for_node_schedulable_status
 
 LOGGER = logging.getLogger(__name__)
 
@@ -62,7 +65,8 @@ def oadp_backup_in_progress(chaos_namespace, rhel_vm_with_dv_running):
         wait_complete=False,
     ) as backup:
         LOGGER.info(f"Created backup: {backup_name}. Waiting for it to enter 'InProgress'...")
-        backup.wait_for_status(status="InProgress", timeout=TIMEOUT_3MIN)
+        backup.wait_for_status(status=ResourceConstants.Backup.Status.INPROGRESS, timeout=TIMEOUT_3MIN)
+        time.sleep(5)
         yield backup
 
 
@@ -78,3 +82,13 @@ def rebooted_vm_source_node(rhel_vm_with_dv_running, oadp_backup_in_progress, wo
     LOGGER.info(f"Waiting for node {vm_node.name} to come back online")
     wait_for_node_status(node=vm_node, status=True, wait_timeout=TIMEOUT_5MIN)
     yield vm_node
+
+
+@pytest.fixture()
+def drain_vm_source_node(rhel_vm_with_dv_running, oadp_backup_in_progress):
+    vm = rhel_vm_with_dv_running
+    vm_node = vm.vmi.node
+    with node_mgmt_console(node=vm_node, node_mgmt="drain"):
+        wait_for_node_schedulable_status(node=vm_node, status=False, timeout=TIMEOUT_5MIN)
+        yield vm_node
+    wait_for_node_schedulable_status(node=vm_node, status=True, timeout=TIMEOUT_5MIN)
