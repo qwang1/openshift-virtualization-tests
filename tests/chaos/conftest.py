@@ -17,7 +17,6 @@ from tests.chaos.utils import (
     pod_deleting_process_recover,
     terminate_process,
 )
-from tests.conftest import admin_client
 from utilities.artifactory import get_artifactory_config_map, get_artifactory_secret
 from utilities.constants import (
     KUBEMACPOOL_MAC_CONTROLLER_MANAGER,
