@@ -2,7 +2,6 @@ import pytest
 from ocp_resources.datavolume import DataVolume
 from ocp_resources.namespace import Namespace
 
-from tests.conftest import admin_client
 from tests.data_protection.oadp.utils import (
     VeleroRestore,
     is_storage_class_support_volume_mode,
@@ -255,7 +254,8 @@ def velero_backup_second_namespace_using_datamover(admin_client, namespace_for_b
 
 @pytest.fixture()
 def velero_restore_second_namespace_with_datamover(
-    admin_client, velero_backup_second_namespace_using_datamover,
+    admin_client,
+    velero_backup_second_namespace_using_datamover,
 ):
     # Delete NS in order to restore it
     Namespace(name=velero_backup_second_namespace_using_datamover.included_namespaces[0]).delete(wait=True)
